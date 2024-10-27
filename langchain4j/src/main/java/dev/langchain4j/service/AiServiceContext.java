@@ -4,6 +4,7 @@ import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatLanguageModelProvider;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.moderation.ModerationModel;
 import dev.langchain4j.rag.RetrievalAugmentor;
@@ -21,7 +22,12 @@ public class AiServiceContext {
 
     public final Class<?> aiServiceClass;
 
+    /**
+     * @deprecated use {@link #chatLanguageModelProvider} instead.
+     */
+    @Deprecated
     public ChatLanguageModel chatModel;
+    public ChatLanguageModelProvider chatLanguageModelProvider;
     public StreamingChatLanguageModel streamingChatModel;
 
     public Map</* id */ Object, ChatMemory> chatMemories;

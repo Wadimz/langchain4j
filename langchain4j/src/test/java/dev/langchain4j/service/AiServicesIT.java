@@ -4,6 +4,8 @@ import dev.langchain4j.exception.IllegalConfigurationException;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatLanguageModelProvider;
+import dev.langchain4j.model.chat.ChatLanguageModelProviderResult;
 import dev.langchain4j.model.input.structured.StructuredPrompt;
 import dev.langchain4j.model.moderation.ModerationModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -51,6 +53,11 @@ public class AiServicesIT {
             .logResponses(true)
             .build();
 
+    ChatLanguageModelProvider chatLanguageModelProvider = request ->
+        ChatLanguageModelProviderResult.builder()
+            .chatLanguageModels(singletonList(chatLanguageModel))
+            .build();
+
     @Spy
     ChatMemory chatMemory = MessageWindowChatMemory.withMaxMessages(10);
 
@@ -76,7 +83,7 @@ public class AiServicesIT {
 
     @Test
     void test_simple_instruction_with_primitive_return_type() {
-        EggCounter eggCounter = AiServices.create(EggCounter.class, chatLanguageModel);
+        EggCounter eggCounter = AiServices.create(EggCounter.class, chatLanguageModelProvider);
 
         String sentence = "I have ten eggs in my basket and three in my pocket.";
 
@@ -99,7 +106,7 @@ public class AiServicesIT {
     @Test
     void test_simple_instruction_with_single_argument() {
 
-        Humorist humorist = AiServices.create(Humorist.class, chatLanguageModel);
+        Humorist humorist = AiServices.create(Humorist.class, chatLanguageModelProvider);
 
         String joke = humorist.joke("AI");
 
@@ -125,7 +132,7 @@ public class AiServicesIT {
     @Test
     void test_extract_date() {
 
-        DateTimeExtractor dateTimeExtractor = AiServices.create(DateTimeExtractor.class, chatLanguageModel);
+        DateTimeExtractor dateTimeExtractor = AiServices.create(DateTimeExtractor.class, chatLanguageModelProvider);
 
         String text = "The tranquility pervaded the evening of 1968, just fifteen minutes shy of midnight, following the celebrations of Independence Day.";
 
@@ -142,7 +149,7 @@ public class AiServicesIT {
     @Test
     void test_extract_time() {
 
-        DateTimeExtractor dateTimeExtractor = AiServices.create(DateTimeExtractor.class, chatLanguageModel);
+        DateTimeExtractor dateTimeExtractor = AiServices.create(DateTimeExtractor.class, chatLanguageModelProvider);
 
         String text = "The tranquility pervaded the evening of 1968, just fifteen minutes shy of midnight, following the celebrations of Independence Day.";
 
@@ -159,7 +166,7 @@ public class AiServicesIT {
     @Test
     void test_extract_date_time() {
 
-        DateTimeExtractor dateTimeExtractor = AiServices.create(DateTimeExtractor.class, chatLanguageModel);
+        DateTimeExtractor dateTimeExtractor = AiServices.create(DateTimeExtractor.class, chatLanguageModelProvider);
 
         String text = "The tranquility pervaded the evening of 1968, just fifteen minutes shy of midnight, following the celebrations of Independence Day.";
 
@@ -188,7 +195,7 @@ public class AiServicesIT {
     @Test
     void test_extract_enum() {
 
-        SentimentAnalyzer sentimentAnalyzer = AiServices.create(SentimentAnalyzer.class, chatLanguageModel);
+        SentimentAnalyzer sentimentAnalyzer = AiServices.create(SentimentAnalyzer.class, chatLanguageModelProvider);
 
         String customerReview = "This LaptopPro X15 is wicked fast and that 4K screen is a dream.";
 
@@ -225,7 +232,7 @@ public class AiServicesIT {
     @Test
     void test_extract_single_enum_with_description() {
 
-        WeatherForecastAnalyzer weatherForecastAnalyzer = AiServices.create(WeatherForecastAnalyzer.class, chatLanguageModel);
+        WeatherForecastAnalyzer weatherForecastAnalyzer = AiServices.create(WeatherForecastAnalyzer.class, chatLanguageModelProvider);
 
         String weatherForecast = "It will be cloudy and mostly rainy. No more rain early in the day but the sky remains overcast. Afternoon it is mostly cloudy. The sun will not be visible. The forecast has a moderate, 40% chance of Precipitation. Temperatures peaking at 17 °C.";
 
@@ -258,7 +265,7 @@ public class AiServicesIT {
 
     @Test
     void test_extract_list_of_enums() {
-        IngredientsExtractor ingredientsExtractor = AiServices.create(IngredientsExtractor.class, chatLanguageModel);
+        IngredientsExtractor ingredientsExtractor = AiServices.create(IngredientsExtractor.class, chatLanguageModelProvider);
 
         String recipe = "Just mix some salt, pepper and oil in the bowl. That will be a basis for...";
 
@@ -301,7 +308,7 @@ public class AiServicesIT {
 
     @Test
     void test_extract_list_of_enums_with_descriptions() {
-        HotelReviewIssueAnalyzer hotelReviewIssueAnalyzer = AiServices.create(HotelReviewIssueAnalyzer.class, chatLanguageModel);
+        HotelReviewIssueAnalyzer hotelReviewIssueAnalyzer = AiServices.create(HotelReviewIssueAnalyzer.class, chatLanguageModelProvider);
 
         String review = "Our stay at hotel was a mixed experience. The location was perfect, just a stone's throw away " +
                 "from the beach, which made our daily outings very convenient. The rooms were spacious and well-decorated, " +
@@ -350,7 +357,7 @@ public class AiServicesIT {
     @Test
     void should_extract_custom_POJO() {
 
-        PersonExtractor personExtractor = AiServices.create(PersonExtractor.class, chatLanguageModel);
+        PersonExtractor personExtractor = AiServices.create(PersonExtractor.class, chatLanguageModelProvider);
 
         String text = "In 1968, amidst the fading echoes of Independence Day, "
                 + "a child named John arrived under the calm evening sky. "
@@ -467,7 +474,7 @@ public class AiServicesIT {
     @Test
     void test_create_recipe_from_list_of_ingredients() {
 
-        Chef chef = AiServices.create(Chef.class, chatLanguageModel);
+        Chef chef = AiServices.create(Chef.class, chatLanguageModelProvider);
 
         Recipe recipe = chef.createRecipeFrom("cucumber", "tomato", "feta", "onion", "olives");
 
@@ -490,7 +497,7 @@ public class AiServicesIT {
     @Test
     void test_create_recipe_from_list_of_ingredients_using_resource() {
 
-        Chef chef = AiServices.create(Chef.class, chatLanguageModel);
+        Chef chef = AiServices.create(Chef.class, chatLanguageModelProvider);
 
         Recipe recipe = chef.createRecipeFromUsingResource("cucumber", "tomato", "feta", "onion", "olives");
 
@@ -513,7 +520,7 @@ public class AiServicesIT {
     @Test
     void test_create_recipe_from_list_of_ingredients_using_resource_in_root() {
 
-        Chef chef = AiServices.create(Chef.class, chatLanguageModel);
+        Chef chef = AiServices.create(Chef.class, chatLanguageModelProvider);
 
         Recipe recipe = chef.createRecipeFromUsingResourceInRoot("cucumber", "tomato", "feta", "onion", "olives");
 
@@ -536,7 +543,7 @@ public class AiServicesIT {
     @Test
     void test_create_recipe_from_list_of_ingredients_using_resource_in_subdirectory() {
 
-        Chef chef = AiServices.create(Chef.class, chatLanguageModel);
+        Chef chef = AiServices.create(Chef.class, chatLanguageModelProvider);
 
         Recipe recipe = chef.createRecipeFromUsingResourceInSubdirectory("cucumber", "tomato", "feta", "onion", "olives");
 
@@ -571,7 +578,7 @@ public class AiServicesIT {
 
     @Test
     void should_fail_when_user_message_resource_is_not_found() {
-        BadChef badChef = AiServices.create(BadChef.class, chatLanguageModel);
+        BadChef badChef = AiServices.create(BadChef.class, chatLanguageModelProvider);
 
         assertThatThrownBy(() -> badChef.createRecipeWithNonExistingResource("cucumber", "tomato", "feta", "onion", "olives"))
                 .isInstanceOf(IllegalConfigurationException.class)
@@ -580,7 +587,7 @@ public class AiServicesIT {
 
     @Test
     void should_fail_when_user_message_resource_is_empty() {
-        BadChef badChef = AiServices.create(BadChef.class, chatLanguageModel);
+        BadChef badChef = AiServices.create(BadChef.class, chatLanguageModelProvider);
 
         assertThatThrownBy(() -> badChef.createRecipeWithEmptyResource("cucumber", "tomato", "feta", "onion", "olives"))
                 .isInstanceOf(IllegalConfigurationException.class)
@@ -589,7 +596,7 @@ public class AiServicesIT {
 
     @Test
     void should_fail_when_user_message_resource_is_blank() {
-        BadChef badChef = AiServices.create(BadChef.class, chatLanguageModel);
+        BadChef badChef = AiServices.create(BadChef.class, chatLanguageModelProvider);
 
         assertThatThrownBy(() -> badChef.createRecipeWithBlankResource("cucumber", "tomato", "feta", "onion", "olives"))
                 .isInstanceOf(IllegalConfigurationException.class)
@@ -607,7 +614,7 @@ public class AiServicesIT {
     @Test
     void test_create_recipe_using_structured_prompt() {
 
-        Chef chef = AiServices.create(Chef.class, chatLanguageModel);
+        Chef chef = AiServices.create(Chef.class, chatLanguageModelProvider);
 
         CreateRecipePrompt prompt = CreateRecipePrompt.builder()
                 .dish("salad")
@@ -635,7 +642,7 @@ public class AiServicesIT {
     @Test
     void test_create_recipe_using_structured_prompt_and_system_message() {
 
-        Chef chef = AiServices.create(Chef.class, chatLanguageModel);
+        Chef chef = AiServices.create(Chef.class, chatLanguageModelProvider);
 
         CreateRecipePrompt prompt = CreateRecipePrompt
                 .builder()
@@ -666,7 +673,7 @@ public class AiServicesIT {
     @Test
     void test_create_recipe_using_structured_prompt_and_system_message_from_resource() {
 
-        Chef chef = AiServices.create(Chef.class, chatLanguageModel);
+        Chef chef = AiServices.create(Chef.class, chatLanguageModelProvider);
 
         CreateRecipePrompt prompt = CreateRecipePrompt
                 .builder()
@@ -703,7 +710,7 @@ public class AiServicesIT {
     @Test
     void test_with_system_message() {
 
-        ProfessionalChef chef = AiServices.create(ProfessionalChef.class, chatLanguageModel);
+        ProfessionalChef chef = AiServices.create(ProfessionalChef.class, chatLanguageModelProvider);
 
         String question = "How long should I grill chicken?";
 
@@ -729,7 +736,7 @@ public class AiServicesIT {
     @Test
     void test_with_system_and_user_messages() {
 
-        Translator translator = AiServices.create(Translator.class, chatLanguageModel);
+        Translator translator = AiServices.create(Translator.class, chatLanguageModelProvider);
 
         String text = "Hello, how are you?";
 
@@ -753,7 +760,7 @@ public class AiServicesIT {
     @Test
     void test_with_system_message_and_user_message_as_argument() {
 
-        Summarizer summarizer = AiServices.create(Summarizer.class, chatLanguageModel);
+        Summarizer summarizer = AiServices.create(Summarizer.class, chatLanguageModelProvider);
 
         String text = "AI, or artificial intelligence, is a branch of computer science that aims to create " +
                 "machines that mimic human intelligence. This can range from simple tasks such as recognizing " +
@@ -825,7 +832,7 @@ public class AiServicesIT {
     void should_return_result() {
 
         // given
-        AssistantReturningResult assistant = AiServices.create(AssistantReturningResult.class, chatLanguageModel);
+        AssistantReturningResult assistant = AiServices.create(AssistantReturningResult.class, chatLanguageModelProvider);
 
         String userMessage = "What is the capital of Germany?";
 
@@ -864,7 +871,7 @@ public class AiServicesIT {
     void should_use_content_retriever_and_return_sources_inside_result_with_pojo() {
 
         // given
-        AssistantReturningResultWithPojo assistant = AiServices.create(AssistantReturningResultWithPojo.class, chatLanguageModel);
+        AssistantReturningResultWithPojo assistant = AiServices.create(AssistantReturningResultWithPojo.class, chatLanguageModelProvider);
 
         // when
         Result<Booking> result = assistant.answer("Give me an example of a booking");

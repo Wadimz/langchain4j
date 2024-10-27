@@ -9,6 +9,8 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatLanguageModelProvider;
+import dev.langchain4j.model.chat.ChatLanguageModelProviderResult;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.input.structured.StructuredPrompt;
 import dev.langchain4j.model.moderation.Moderation;
@@ -26,7 +28,11 @@ import dev.langchain4j.service.tool.ToolProvider;
 import dev.langchain4j.spi.services.AiServicesFactory;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -37,6 +43,7 @@ import static dev.langchain4j.exception.IllegalConfigurationException.illegalCon
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -152,6 +159,21 @@ public abstract class AiServices<T> {
     }
 
     /**
+     * Creates an AI Service (an implementation of the provided interface), that is backed by the provided chat model.
+     * This convenience method can be used to create simple AI Services.
+     * For more complex cases, please use {@link #builder}.
+     *
+     * @param aiService                 The class of the interface to be implemented.
+     * @param chatLanguageModelProvider The chat model provider to be used under the hood.
+     * @return An instance of the provided interface, implementing all its defined methods.
+     */
+    public static <T> T create(Class<T> aiService, ChatLanguageModelProvider chatLanguageModelProvider) {
+        return builder(aiService)
+                .chatLanguageModelProvider(chatLanguageModelProvider)
+                .build();
+    }
+
+    /**
      * Creates an AI Service (an implementation of the provided interface), that is backed by the provided streaming chat model.
      * This convenience method can be used to create simple AI Services.
      * For more complex cases, please use {@link #builder}.
@@ -191,7 +213,21 @@ public abstract class AiServices<T> {
      * @return builder
      */
     public AiServices<T> chatLanguageModel(ChatLanguageModel chatLanguageModel) {
+        if (context.chatLanguageModelProvider != null) {
+            throw new IllegalArgumentException("Either the chatLanguageModel or the chatLanguageModelProvider can be configured, but not both!");
+        }
         context.chatModel = chatLanguageModel;
+        context.chatLanguageModelProvider = request -> ChatLanguageModelProviderResult.builder()
+                .chatLanguageModels(singletonList(chatLanguageModel))
+                .build();
+        return this;
+    }
+
+    public AiServices<T> chatLanguageModelProvider(ChatLanguageModelProvider chatLanguageModelProvider) {
+        if (context.chatModel != null) {
+            throw new IllegalArgumentException("Either the chatLanguageModel or the chatLanguageModelProvider can be configured, but not both!");
+        }
+        context.chatLanguageModelProvider = chatLanguageModelProvider;
         return this;
     }
 
@@ -457,7 +493,7 @@ public abstract class AiServices<T> {
     public abstract T build();
 
     protected void performBasicValidation() {
-        if (context.chatModel == null && context.streamingChatModel == null) {
+        if (context.chatModel == null && context.streamingChatModel == null && context.chatLanguageModelProvider == null) {
             throw illegalConfiguration("Please specify either chatLanguageModel or streamingChatLanguageModel");
         }
     }

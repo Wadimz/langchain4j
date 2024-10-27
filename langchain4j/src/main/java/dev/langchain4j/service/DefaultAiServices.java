@@ -8,6 +8,9 @@ import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.ChatMemory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatLanguageModelProviderRequest;
+import dev.langchain4j.model.chat.ChatLanguageModelProviderResult;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ResponseFormat;
 import dev.langchain4j.model.chat.request.json.JsonSchema;
@@ -47,11 +50,14 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static dev.langchain4j.exception.IllegalConfigurationException.illegalConfiguration;
 import static dev.langchain4j.internal.Exceptions.illegalArgument;
 import static dev.langchain4j.internal.Exceptions.runtime;
 import static dev.langchain4j.internal.Utils.isNotNullOrBlank;
+import static dev.langchain4j.internal.ValidationUtils.ensureNotEmpty;
 import static dev.langchain4j.model.chat.Capability.RESPONSE_FORMAT_JSON_SCHEMA;
 import static dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
 import static dev.langchain4j.service.TypeUtils.typeHasRawClass;
@@ -59,6 +65,8 @@ import static dev.langchain4j.service.output.JsonSchemas.jsonSchemaFrom;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
 
 class DefaultAiServices<T> extends AiServices<T> {
+
+    private static final Logger log = LoggerFactory.getLogger(DefaultAiServices.class);
 
     private static final int MAX_SEQUENTIAL_TOOL_EXECUTIONS = 100;
 
@@ -142,7 +150,7 @@ class DefaultAiServices<T> extends AiServices<T> {
 
                         boolean streaming = returnType == TokenStream.class || canAdaptTokenStreamTo(returnType);
 
-                        boolean supportsJsonSchema = supportsJsonSchema();
+                        boolean supportsJsonSchema = supportsJsonSchema(memoryId, userMessage);
                         Optional<JsonSchema> jsonSchema = Optional.empty();
                         if (supportsJsonSchema && !streaming) {
                             jsonSchema = jsonSchemaFrom(returnType);
@@ -215,7 +223,8 @@ class DefaultAiServices<T> extends AiServices<T> {
                                             .build())
                                     .build();
 
-                            ChatResponse chatResponse = context.chatModel.chat(chatRequest);
+                            ChatLanguageModel chatModel = DefaultAiServices.this.getChatModel(memoryId, userMessage);
+                            ChatResponse chatResponse = chatModel.chat(chatRequest);
 
                             response = new Response<>(
                                     chatResponse.aiMessage(),
@@ -224,9 +233,10 @@ class DefaultAiServices<T> extends AiServices<T> {
                             );
                         } else {
                             // TODO migrate to new API
+                            ChatLanguageModel chatModel = DefaultAiServices.this.getChatModel(memoryId, userMessage);
                             response = toolSpecifications == null
-                                    ? context.chatModel.generate(messages)
-                                    : context.chatModel.generate(messages, toolSpecifications);
+                                    ? chatModel.generate(messages)
+                                    : chatModel.generate(messages, toolSpecifications);
                         }
 
                         TokenUsage tokenUsageAccumulator = response.tokenUsage();
@@ -276,8 +286,8 @@ class DefaultAiServices<T> extends AiServices<T> {
                             if (context.hasChatMemory()) {
                                 messages = context.chatMemory(memoryId).messages();
                             }
-
-                            response = context.chatModel.generate(messages, toolSpecifications);
+                            ChatLanguageModel chatModel = DefaultAiServices.this.getChatModel(memoryId, userMessage);
+                            response = chatModel.generate(messages, toolSpecifications);
                             tokenUsageAccumulator = TokenUsage.sum(tokenUsageAccumulator, response.tokenUsage());
                         }
 
@@ -315,9 +325,10 @@ class DefaultAiServices<T> extends AiServices<T> {
                         throw new IllegalStateException("Can't find suitable TokenStreamAdapter");
                     }
 
-                    private boolean supportsJsonSchema() {
-                        return context.chatModel != null
-                                && context.chatModel.supportedCapabilities().contains(RESPONSE_FORMAT_JSON_SCHEMA);
+                    private boolean supportsJsonSchema(Object memoryId, UserMessage userMessage) {
+                        ChatLanguageModel chatModel = DefaultAiServices.this.getChatModel(memoryId, userMessage);
+                        return chatModel != null
+                                && chatModel.supportedCapabilities().contains(RESPONSE_FORMAT_JSON_SCHEMA);
                     }
 
                     private UserMessage appendOutputFormatInstructions(Type returnType, UserMessage userMessage) {
@@ -343,6 +354,24 @@ class DefaultAiServices<T> extends AiServices<T> {
                 });
 
         return (T) proxyInstance;
+    }
+
+    private ChatLanguageModel getChatModel(Object memoryId, UserMessage userMessage) {
+        ChatLanguageModelProviderRequest chatLanguageModelProviderRequest = ChatLanguageModelProviderRequest.builder()
+            .memoryId(memoryId)
+            .userMessage(userMessage)
+            .build();
+
+        ChatLanguageModelProviderResult chatModelResponse =
+            context.chatLanguageModelProvider.provideChatLanguageModel(chatLanguageModelProviderRequest);
+        if (chatModelResponse == null) {
+            throw new IllegalStateException("Chat model is not provided");
+        }
+        ensureNotEmpty(chatModelResponse.getChatLanguageModels(), "Chat models");
+        if (chatModelResponse.getChatLanguageModels().size() > 1) {
+            log.warn("Multiple chat models are provided, using the first one");
+        }
+        return chatModelResponse.getChatLanguageModels().iterator().next();
     }
 
     private Optional<SystemMessage> prepareSystemMessage(Object memoryId, Method method, Object[] args) {
